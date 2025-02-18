@@ -4,7 +4,7 @@ module com.example.qrcode {
     requires java.desktop;
     requires com.google.zxing;
     requires com.google.zxing.javase;
-
+    requires com.google.gson;
 
     opens com.example.qrcode to javafx.fxml;
     exports com.example.qrcode;

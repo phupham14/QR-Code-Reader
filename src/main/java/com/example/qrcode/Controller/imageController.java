@@ -1,5 +1,7 @@
 package com.example.qrcode.Controller;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.zxing.*;
 import javafx.fxml.FXML;
 import javafx.scene.control.Alert;
@@ -45,71 +47,132 @@ public class imageController {
     }
 
     private static final Map<String, String> TAG_NAMES = new HashMap<>();
+    private static final Map<String, String> ACCOUNT_INFO_TAGS = new HashMap<>();
+    private static final Map<String, String> ACCOUNT_INFO_TAGS2 = new HashMap<>();
 
     static {
-        TAG_NAMES.put("00", "Payload Format Indicator");
-        TAG_NAMES.put("01", "Point of Initiation Method");
-        TAG_NAMES.put("15", "Merchant Category Code");
-        TAG_NAMES.put("58", "Country Code");
-        TAG_NAMES.put("12", "Merchant Name");
-        TAG_NAMES.put("15", "Merchant City");
-        TAG_NAMES.put("52", "Transaction Currency");
-        TAG_NAMES.put("53", "Transaction Amount");
-        TAG_NAMES.put("50", "Merchant ID");
-        TAG_NAMES.put("70", "Bakong Account ID");
-        TAG_NAMES.put("80", "Acquiring Bank");
-        TAG_NAMES.put("95", "Mobile Number");
-        TAG_NAMES.put("62", "Additional Data");
-        TAG_NAMES.put("63", "CRC"); // Checksum
-        TAG_NAMES.put("38", "Reserved for Future Use");
-        TAG_NAMES.put("64", "Reserved for Future Use");
+        TAG_NAMES.put("00", "payloadFormatIndicator");
+        TAG_NAMES.put("01", "pointOfInitiationMethod");
+        TAG_NAMES.put("52", "merchantCategoryCode");
+        TAG_NAMES.put("58", "countryCode");
+        TAG_NAMES.put("59", "merchantName");
+        TAG_NAMES.put("60", "merchantCity");
+        TAG_NAMES.put("53", "transactionCurrency");
+        TAG_NAMES.put("54", "transactionAmount");
+        TAG_NAMES.put("50", "merchantId");
+        TAG_NAMES.put("80", "acquiringBank");
+        TAG_NAMES.put("62", "additionalData");
+        TAG_NAMES.put("63", "crc");
+        TAG_NAMES.put("38", "accountInformation");
+
+        // Các trường con của "accountInformation" (id = 38)
+        ACCOUNT_INFO_TAGS.put("00", "globalUniqueIdentifier");
+        ACCOUNT_INFO_TAGS.put("01", "acquirerId");
+        ACCOUNT_INFO_TAGS.put("02", "merchantId");
+        ACCOUNT_INFO_TAGS.put("03", "serviceCode");
+
+        // Các trường con của "additionalData" (id = 38)
+        ACCOUNT_INFO_TAGS2.put("01", "billNumber");
+        ACCOUNT_INFO_TAGS2.put("02", "mobileNumber");
+        ACCOUNT_INFO_TAGS2.put("03", "storeNumber");
+        ACCOUNT_INFO_TAGS2.put("07", "terminalNumber");
     }
 
-
-    private static String parseEMVQRCode(String qrData, int level, boolean isSubtag) {
-        StringBuilder parsedData = new StringBuilder();
+    // Xử lý các tag chính
+    public static String parseEMVQRCode(String qrData) {
+        Map<String, String> parsedData = new HashMap<>();
         int index = 0;
 
         while (index < qrData.length()) {
             try {
-                if (index + 4 > qrData.length()) break; // Đảm bảo không bị out of bounds
+                if (index + 4 > qrData.length()) break;
 
-                // Lấy Tag (2 ký tự đầu)
                 String tag = qrData.substring(index, index + 2);
                 index += 2;
 
-                // Lấy độ dài của giá trị (2 ký tự tiếp theo)
                 int length = Integer.parseInt(qrData.substring(index, index + 2));
                 index += 2;
 
-                // Kiểm tra xem có đủ độ dài hay không
                 if (index + length > qrData.length()) break;
 
-                // Lấy giá trị thực tế
                 String value = qrData.substring(index, index + length);
                 index += length;
 
-                // Kiểm tra xem có phải Subtag không
-                boolean isCurrentSubtag = tag.equals("38") || tag.equals("62") || tag.equals("64");
-                String tagLabel = isSubtag ? "Subtag" : "Tag";
-                String tagName = TAG_NAMES.getOrDefault(tag, "Unknown");
+                String fieldName = TAG_NAMES.getOrDefault(tag, "unknownField");
 
-                // Thêm vào chuỗi kết quả
-                parsedData.append("  ".repeat(level))
-                        .append(String.format("%s: %s (%s) | Length: %d | Value: %s\n", tagLabel, tag, tagName, length, value));
+                if (tag.equals("38")) { // Nếu là accountInformation
+                    Map<String, String> accountInfo = parseAccountInformation(value);
 
-                // Nếu tag là 38, 62 hoặc 64, phân tích tiếp phần dữ liệu này và đánh dấu là subtag
-                if (isCurrentSubtag) {
-                    parsedData.append(parseEMVQRCode(value, level + 1, true));
+                    // Đưa tất cả giá trị từ accountInfo vào parsedData
+                    parsedData.put("globalUniqueIdentifier", accountInfo.getOrDefault("globalUniqueIdentifier", "null"));
+                    parsedData.put("acquirerId", accountInfo.getOrDefault("acquirerId", "null"));
+                    parsedData.put("merchantId", accountInfo.getOrDefault("merchantId", "null"));
+                    parsedData.put("serviceCode", accountInfo.getOrDefault("serviceCode", "null"));
+                } else if (tag.equals("62")) {
+                    Map<String, String> accountInfo = parseAccountInformation(value);
+                    parsedData.put("billNumber", accountInfo.getOrDefault("billNumber", "null"));
+                    parsedData.put("mobileNumber", accountInfo.getOrDefault("mobileNumber", "null"));
+                    parsedData.put("storeNumber", accountInfo.getOrDefault("storeNumber", "null"));
+                    parsedData.put("terminalNumber", accountInfo.getOrDefault("terminalNumber", "null"));
+                } else {
+                    parsedData.put(fieldName, value.isEmpty() ? "null" : value);
                 }
             } catch (Exception e) {
-                parsedData.append("  ".repeat(level)).append("Lỗi khi phân tích EMV.\n");
+                parsedData.put("error", "Lỗi khi phân tích EMV: " + e.getMessage());
                 break;
             }
         }
 
-        return parsedData.toString();
+        // Dùng Gson với cấu hình để loại bỏ escape unicode
+        Gson gson = new GsonBuilder().disableHtmlEscaping().setPrettyPrinting().create();
+        return gson.toJson(parsedData);
     }
+
+    // Xử lý subtag
+    private static Map<String, String> parseAccountInformation(String data) {
+        Map<String, String> result = new HashMap<>();
+        int index = 0;
+
+        while (index < data.length()) {
+            try {
+                if (index + 4 > data.length()) break;
+
+                String tag = data.substring(index, index + 2);
+                index += 2;
+
+                int length = Integer.parseInt(data.substring(index, index + 2));
+                index += 2;
+
+                if (index + length > data.length()) break;
+
+                String value = data.substring(index, index + length);
+                index += length;
+
+                // Xử lý từng trường con
+                switch (tag) {
+                    case "00":
+                        result.put("globalUniqueIdentifier", value);
+                        break;
+                    case "01":
+                        result.put("acquirerId", value.substring(4, 10)); // Chỉ lấy 6 ký tự đầu tiên
+                        result.put("merchantId", value.substring(14)); // Phần còn lại là Merchant ID
+                        break;
+                    case "02":
+                        result.put("serviceCode", value);
+                        break;
+                    default:
+                        result.put("unknownTag_" + tag, value);
+                        break;
+                }
+            } catch (Exception e) {
+                result.put("error", "Lỗi khi bóc tách Account Information: " + e.getMessage());
+                break;
+            }
+        }
+
+        return result;
+    }
+
 
     private String isQRCode(File file) {
         try {
@@ -123,7 +186,7 @@ public class imageController {
             String qrContent = result.getText();
             System.out.println("QR Code Raw Content: " + qrContent); // Debug
             // Gọi hàm parseEMVQRCode để bóc tách dữ liệu
-            return parseEMVQRCode(qrContent, 0, false);
+            return parseEMVQRCode(qrContent);
         } catch (IOException | NotFoundException e) {
             showAlert("Không phải QR Code", "Ảnh bạn chọn không chứa mã QR hợp lệ.");
         }
