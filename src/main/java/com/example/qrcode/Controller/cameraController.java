@@ -39,10 +39,12 @@ public class cameraController {
 
     private VideoCapture camera;
     private AtomicBoolean isCameraActive = new AtomicBoolean(false);
+    private yoloDetector qrDetector; // YOLOv8 Detector
 
     public void initialize() {
         System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
         camera = new VideoCapture();
+        qrDetector = new yoloDetector("src/main/resources/models/yolov8n.onnx");
     }
 
     public void setTextArea(TextArea textArea) {
