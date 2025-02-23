@@ -1,7 +1,5 @@
 package com.example.qrcode.Controller;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.zxing.*;
 import com.google.zxing.client.j2se.BufferedImageLuminanceSource;
 import com.google.zxing.common.HybridBinarizer;
@@ -22,7 +20,6 @@ import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
 import java.io.ByteArrayInputStream;
 import javax.imageio.ImageIO;
-import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.example.qrcode.Controller.imageController.parseEMVQRCode;
@@ -73,6 +70,7 @@ public class cameraController {
                             String qrContent = decodeQRCodeAndDisplay(frame);
 
                             // Hiển thị hình ảnh lên giao diện
+                            Imgproc.cvtColor(frame, frame, Imgproc.COLOR_BGR2RGB);
                             Image image = matToImage(frame);
                             if (image != null) {
                                 Platform.runLater(() -> cameraView.setImage(image));
