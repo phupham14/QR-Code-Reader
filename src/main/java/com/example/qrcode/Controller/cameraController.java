@@ -6,12 +6,15 @@ import com.google.zxing.common.HybridBinarizer;
 import com.google.zxing.multi.qrcode.QRCodeMultiReader;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Parent;
 import javafx.scene.control.TextArea;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.control.Button;
 import org.opencv.core.*;
 import org.opencv.imgcodecs.Imgcodecs;
+import org.opencv.objdetect.QRCodeDetector;
 import org.opencv.videoio.VideoCapture;
 import org.opencv.imgproc.Imgproc;
 import javafx.embed.swing.SwingFXUtils;
@@ -20,7 +23,10 @@ import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
 import java.io.ByteArrayInputStream;
 import javax.imageio.ImageIO;
+import java.io.File;
+import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 
 import static com.example.qrcode.Controller.imageController.parseEMVQRCode;
 
@@ -34,6 +40,9 @@ public class cameraController {
     @FXML
     private TextArea textArea; // TextArea để hiển thị nội dung QR Code dưới dạng JSON
 
+    @FXML
+    private ImageView imageView;
+
     private VideoCapture camera;
     private AtomicBoolean isCameraActive = new AtomicBoolean(false);
     private yoloDetector qrDetector; // YOLOv8 Detector
@@ -46,6 +55,19 @@ public class cameraController {
 
     public void setTextArea(TextArea textArea) {
         this.textArea = textArea;
+    }
+
+    private Consumer<String> onQRCodeScanned;
+
+    public void setOnQRCodeScanned(Consumer<String> callback) {
+        this.onQRCodeScanned = callback;
+    }
+
+    private void processQRCode(String qrContent) {
+        System.out.println("Scanned QR Code: " + qrContent);
+        if (onQRCodeScanned != null) {
+            onQRCodeScanned.accept(qrContent);
+        }
     }
 
     @FXML
@@ -69,7 +91,20 @@ public class cameraController {
                             // Giải mã QR Code
                             String qrContent = decodeQRCodeAndDisplay(frame);
 
-                            // Hiển thị hình ảnh lên giao diện
+                            if (qrContent != null && !qrContent.isEmpty()) {
+                                // Lưu hình ảnh QR
+                                String imagePath = saveImage(frame);
+
+                                if (imagePath != null) {
+                                    // Cập nhật ImageView trên giao diện
+                                    Platform.runLater(() -> imageController.getInstance().updateImageView(imagePath));
+
+                                    // Dừng camera sau khi lưu ảnh
+                                    Platform.runLater(() -> stopCamera());
+                                }
+                            }
+
+                            // Hiển thị hình ảnh camera lên giao diện
                             Imgproc.cvtColor(frame, frame, Imgproc.COLOR_BGR2RGB);
                             Image image = matToImage(frame);
                             if (image != null) {
@@ -83,11 +118,62 @@ public class cameraController {
                 System.out.println("Can't open camera!");
             }
         } else {
-            isCameraActive.set(false);
-            cameraButton.setText("Open Camera");
-            camera.release();
+            stopCamera();
         }
     }
+
+    public void stopCamera() {
+        isCameraActive.set(false);
+        cameraButton.setText("Open Camera");
+        camera.release();
+    }
+
+    public String saveImage(Mat frame) {
+        MatOfPoint2f points = detectQRCode(frame);
+        if (points != null) {
+            // Cắt vùng QR từ ảnh gốc
+            Mat qrCodeRegion = cropQRCode(frame, points);
+
+            // Lấy thư mục lưu ảnh hợp lệ
+            String picturesPath = System.getProperty("user.home") + File.separator + "Pictures";
+            File dir = new File(picturesPath);
+            if (!dir.exists()) {
+                dir.mkdirs(); // Tạo thư mục nếu chưa tồn tại
+            }
+
+            // Lưu ảnh QR đã cắt vào thư mục Pictures
+            String filename = picturesPath + File.separator + "qr_code.png";
+            if (Imgcodecs.imwrite(filename, qrCodeRegion)) {
+                System.out.println("QR Code image saved to: " + filename);
+                qrCodeRegion.release();
+                return filename;
+            } else {
+                System.out.println("Failed to save QR code image.");
+            }
+        }
+        return null;
+    }
+
+    // Hàm phát hiện QR Code và trả về tọa độ
+    private MatOfPoint2f detectQRCode(Mat frame) {
+        QRCodeDetector detector = new QRCodeDetector();
+        Mat points = new Mat();
+        boolean detected = detector.detect(frame, points);
+
+        if (detected && points.rows() > 0) {
+            MatOfPoint2f result = new MatOfPoint2f(points);
+            points.release();
+            return result;
+        }
+        return null;
+    }
+
+    // Hàm cắt vùng QR Code
+    private Mat cropQRCode(Mat frame, MatOfPoint2f points) {
+        Rect rect = Imgproc.boundingRect(points);
+        return new Mat(frame, rect);
+    }
+
 
     private String decodeQRCodeAndDisplay(Mat frame) {
         try {

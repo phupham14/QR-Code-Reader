@@ -7,6 +7,7 @@
 <AnchorPane prefHeight="400.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/22" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.qrcode.Controller.cameraController">
     <children>
         <ImageView fx:id="cameraView" fitHeight="350.0" fitWidth="550.0" layoutX="25.0" layoutY="20.0" />
+        <ImageView fx:id="imageView" />
         <Button fx:id="cameraButton" layoutX="250.0" layoutY="370.0" mnemonicParsing="false" onAction="#startCamera" text="Stop Camera" />
     </children>
 </AnchorPane>

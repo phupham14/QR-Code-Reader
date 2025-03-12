@@ -6,6 +6,11 @@ module com.example.qrcode {
     requires com.google.gson;
     requires opencv;
     requires javafx.swing;
+    requires java.sql;
+    requires java.naming;
+    requires org.apache.poi.poi;
+    requires org.apache.poi.ooxml;
+    requires org.apache.xmlbeans;
 
     opens com.example.qrcode to javafx.fxml;
     exports com.example.qrcode;
