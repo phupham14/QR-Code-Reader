@@ -28,8 +28,6 @@ import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
-import static com.example.qrcode.Controller.imageController.parseEMVQRCode;
-
 public class cameraController {
     @FXML
     private ImageView cameraView;
@@ -45,12 +43,10 @@ public class cameraController {
 
     private VideoCapture camera;
     private AtomicBoolean isCameraActive = new AtomicBoolean(false);
-    private yoloDetector qrDetector; // YOLOv8 Detector
 
     public void initialize() {
         System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
         camera = new VideoCapture();
-        qrDetector = new yoloDetector("src/main/resources/models/yolov8n.onnx");
     }
 
     public void setTextArea(TextArea textArea) {
@@ -190,35 +186,32 @@ public class cameraController {
                 ResultPoint[] points = result.getResultPoints();
 
                 if (points.length >= 4) {
-                    // Tìm điểm nhỏ nhất và lớn nhất để xác định khung QR Code
                     float xMin = Float.MAX_VALUE, yMin = Float.MAX_VALUE;
                     float xMax = Float.MIN_VALUE, yMax = Float.MIN_VALUE;
 
                     for (ResultPoint point : points) {
                         float x = point.getX();
                         float y = point.getY();
-
-                        if (x < xMin) xMin = x;
-                        if (y < yMin) yMin = y;
-                        if (x > xMax) xMax = x;
-                        if (y > yMax) yMax = y;
+                        xMin = Math.min(xMin, x);
+                        yMin = Math.min(yMin, y);
+                        xMax = Math.max(xMax, x);
+                        yMax = Math.max(yMax, y);
                     }
 
-                    // Vẽ bounding box màu xanh lá cây
                     Point topLeft = new Point(xMin, yMin);
                     Point bottomRight = new Point(xMax, yMax);
                     Imgproc.rectangle(frame, topLeft, bottomRight, new Scalar(0, 255, 0), 2);
                 }
 
-                // Lấy nội dung QR Code
                 String rawContent = result.getText();
                 System.out.println("QR Code Raw Content: " + rawContent);
 
-                // Bóc tách dữ liệu và hiển thị JSON trong TextArea
-                String jsonContent = parseEMVQRCode(rawContent);
-                Platform.runLater(() -> textArea.setText(jsonContent)); // Cập nhật TextArea trên giao diện
+                // Gọi xử lý hiển thị và lưu QR
+                Platform.runLater(() -> {
+                    imageController.getInstance().processQRCode(rawContent, "camera");
+                });
 
-                return jsonContent;
+                return rawContent;
             }
         } catch (Exception e) {
             //System.err.println("Lỗi khi đọc QR Code: " + e.getMessage());

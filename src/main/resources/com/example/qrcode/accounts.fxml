@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Pagination?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.text.Font?>
+<?import javafx.scene.text.Text?>
+
+<AnchorPane prefHeight="400.0" prefWidth="770.0" xmlns="http://javafx.com/javafx/22" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.qrcode.Controller.accountController">
+    <children>
+        <Text layoutX="298.0" layoutY="46.0" strokeType="OUTSIDE" strokeWidth="0.0" text="Accounts List" AnchorPane.leftAnchor="298.0" AnchorPane.rightAnchor="298.005859375" AnchorPane.topAnchor="13.626953125">
+            <font>
+                <Font size="30.0" />
+            </font>
+        </Text>
+        <Pagination fx:id="pagination" layoutX="-0.8" maxPageIndicatorCount="4" pageCount="4" prefHeight="344.0" prefWidth="771.0" AnchorPane.bottomAnchor="2.0" AnchorPane.leftAnchor="-1.0" AnchorPane.rightAnchor="1.0" />
+        <TableView fx:id="accountTable" layoutY="62.0" prefHeight="276.0" prefWidth="770.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.7999999999999545">
+            <columns>
+                <TableColumn fx:id="accountNumberCol" prefWidth="143.20001524686813" text="Account Number" />
+                <TableColumn fx:id="accountHolderCol" prefWidth="195.99998474121094" text="Account Holder" />
+                <TableColumn fx:id="balanceCol" minWidth="0.0" prefWidth="157.5999755859375" text="Balance" />
+                <TableColumn fx:id="secretKeyCol" prefWidth="133.60003662109375" text="Secret Key" />
+                <TableColumn fx:id="regenerateKeyCol" prefWidth="140.0" text="Regenerate Key" />
+            </columns>
+        </TableView>
+    </children>
+</AnchorPane>

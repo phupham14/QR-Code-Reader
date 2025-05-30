@@ -3,7 +3,8 @@
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.Menu?>
 <?import javafx.scene.control.MenuBar?>
-<?import javafx.scene.control.TextArea?>
+<?import javafx.scene.control.MenuItem?>
+<?import javafx.scene.control.TextField?>
 <?import javafx.scene.image.Image?>
 <?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.AnchorPane?>
@@ -11,57 +12,85 @@
 <?import javafx.scene.text.Font?>
 <?import javafx.scene.text.Text?>
 
-<?import javafx.scene.control.MenuItem?>
 <AnchorPane prefHeight="582.0" prefWidth="857.0" xmlns="http://javafx.com/javafx/22" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.qrcode.Controller.imageController">
     <children>
-      <ImageView fitHeight="645.0" fitWidth="875.0" opacity="0.36" pickOnBounds="true" preserveRatio="true">
-         <image>
-            <Image url="@../../../Picture/qr-code-payment.jpg" />
-         </image>
-      </ImageView>
-        <Button fx:id="browse" layoutX="215.0" layoutY="486.0" mnemonicParsing="false" onMouseClicked="#uploadImage" text="Browse" />
+        <!-- Background Image -->
+        <ImageView fitHeight="645.0" fitWidth="875.0" opacity="0.36" pickOnBounds="true" preserveRatio="true">
+            <image>
+                <Image url="@../../../Picture/qr-code-payment.jpg" />
+            </image>
+        </ImageView>
+
+        <!-- Title -->
         <Text layoutX="275.0" layoutY="101.0" strokeType="OUTSIDE" strokeWidth="0.0" text="QR Code Reader">
             <font>
                 <Font name="System Bold" size="40.0" />
             </font>
         </Text>
-      <Rectangle arcHeight="5.0" arcWidth="5.0" fill="WHITE" height="258.0" layoutX="38.0" layoutY="187.0" stroke="BLACK" strokeType="INSIDE" strokeWidth="0.5" width="354.0" />
-        <Text layoutX="465.0" layoutY="159.0" strokeType="OUTSIDE" strokeWidth="0.0" text="Text:">
-            <font>
-                <Font size="22.0" />
-            </font>
-        </Text>
+
+        <!-- Rectangle Background for QR Code -->
+        <Rectangle arcHeight="5.0" arcWidth="5.0" fill="WHITE" height="258.0" layoutX="38.0" layoutY="187.0" stroke="BLACK" strokeType="INSIDE" strokeWidth="0.5" width="354.0" />
+
+        <!-- Labels -->
         <Text layoutX="38.0" layoutY="159.0" strokeType="OUTSIDE" strokeWidth="0.0" text="Image:">
             <font>
                 <Font size="23.0" />
             </font>
         </Text>
-      <TextArea fx:id="textArea" layoutX="465.0" layoutY="187.0" prefHeight="257.0" prefWidth="354.0" />
-      <Button fx:id="cameraButton" layoutX="116.0" layoutY="486.0" mnemonicParsing="false" onAction="#startCamera" text="Camera" />
+        <Text layoutX="465.0" layoutY="159.0" strokeType="OUTSIDE" strokeWidth="0.0" text="Extracted Data:">
+            <font>
+                <Font size="22.0" />
+            </font>
+        </Text>
+
+        <!-- QR Code Image Preview -->
         <ImageView fx:id="imageView" fitHeight="258.0" fitWidth="354.0" layoutX="38.0" layoutY="187.0" pickOnBounds="true" preserveRatio="true" />
-      <MenuBar>
-          <menus>
-              <Menu mnemonicParsing="false" text="Bank">
-                  <items>
-                      <MenuItem text="Bank Page" onAction="#goToBank"/>
-                  </items>
-              </Menu>
-              <Menu mnemonicParsing="false" text="Country">
-                  <items>
-                      <MenuItem text="Country Page" onAction="#goToCountry"/>
-                  </items>
-              </Menu>
-              <Menu mnemonicParsing="false" text="Currency">
-                  <items>
-                      <MenuItem text="Currency Page" onAction="#goToCurrency"/>
-                  </items>
-              </Menu>
-              <Menu mnemonicParsing="false" text="Transaction">
-                  <items>
-                      <MenuItem text="Transaction Page" onAction="#goToTransaction"/>
-                  </items>
-              </Menu>
-          </menus>
-      </MenuBar>
+
+        <!-- Buttons -->
+        <Button fx:id="cameraButton" layoutX="116.0" layoutY="486.0" mnemonicParsing="false" onAction="#startCamera" text="Camera" />
+        <Button fx:id="browse" layoutX="215.0" layoutY="486.0" mnemonicParsing="false" onMouseClicked="#uploadImage" text="Browse" />
+
+        <!-- Extracted Data Fields -->
+        <TextField fx:id="txtDataVersion" layoutX="465.0" layoutY="190.0" promptText="Phiên bản dữ liệu" />
+        <TextField fx:id="txtMethod" layoutX="465.0" layoutY="230.0" promptText="Phương thức khởi tạo" />
+        <TextField fx:id="txtOrgID" layoutX="465.0" layoutY="270.0" promptText="Định danh tổ chức" />
+        <TextField fx:id="txtBank" layoutX="465.0" layoutY="310.0" promptText="Ngân hàng thụ hưởng" />
+        <TextField fx:id="txtAccount" layoutX="465.0" layoutY="350.0" promptText="Tài khoản thụ hưởng" />
+        <TextField fx:id="txtCategoryCode" layoutX="465.0" layoutY="390.0" promptText="Mã danh mục" />
+        <TextField fx:id="txtCurrency" layoutX="465.0" layoutY="430.0" promptText="Mã tiền tệ" />
+        <TextField fx:id="txtAmount" layoutX="465.0" layoutY="470.0" promptText="Số tiền giao dịch" />
+        <TextField fx:id="txtInvoice" layoutX="700.0" layoutY="190.0" promptText="Số hóa đơn" />
+        <TextField fx:id="txtMerchantName" layoutX="700.0" layoutY="230.0" promptText="Tên DVCNTT" />
+        <TextField fx:id="txtMerchantCity" layoutX="700.0" layoutY="270.0" promptText="Merchant City" />
+        <TextField fx:id="txtPhone" layoutX="700.0" layoutY="310.0" promptText="Số điện thoại di động" />
+        <TextField fx:id="txtCRC" layoutX="700.0" layoutY="350.0" promptText="CRC" />
+
+        <!-- Menu Bar -->
+        <MenuBar>
+            <menus>
+                <Menu mnemonicParsing="false" text="Utility">
+                    <items>
+                        <MenuItem onAction="#goToBank" text="Bank Page" />
+                        <MenuItem onAction="#goToCountry" text="Country Page" />
+                        <MenuItem onAction="#goToCurrency" text="Currency Page" />
+                    </items>
+                </Menu>
+                <Menu mnemonicParsing="false" text="Transaction">
+                    <items>
+                        <MenuItem onAction="#goToTransaction" text="Transaction Page" />
+                    </items>
+                </Menu>
+                <Menu mnemonicParsing="false" text="Accounts">
+                    <items>
+                        <MenuItem onAction="#goToAccount" text="Account Page" />
+                    </items>
+                </Menu>
+            <Menu mnemonicParsing="false" text="Statement">
+               <items>
+                  <MenuItem onAction="#goToExtraction" text="Statement" />
+               </items>
+            </Menu>
+            </menus>
+        </MenuBar>
     </children>
 </AnchorPane>

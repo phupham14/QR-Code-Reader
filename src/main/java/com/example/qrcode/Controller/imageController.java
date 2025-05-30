@@ -1,8 +1,7 @@
 package com.example.qrcode.Controller;
 
 import com.example.qrcode.Model.QRDetail;
-import com.example.qrcode.Service.QRDetailService;
-import com.example.qrcode.Service.QRTextService;
+import com.example.qrcode.Service.*;
 import com.google.zxing.*;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
@@ -11,14 +10,11 @@ import javafx.fxml.FXMLLoader;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
-import javafx.scene.control.Alert;
-import javafx.scene.control.MenuItem;
-import javafx.scene.control.TextField;
+import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseEvent;
 import javafx.stage.FileChooser;
-import javafx.scene.control.TextArea;
 import com.google.zxing.client.j2se.BufferedImageLuminanceSource;
 import com.google.zxing.common.HybridBinarizer;
 import javafx.stage.Stage;
@@ -30,34 +26,43 @@ import java.io.File;
 import java.io.IOException;
 import java.sql.Connection;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.*;
 
 public class imageController {
     private cameraController cameraController;
+    private VideoCapture capture;
+    private boolean isCameraActive = false;
+    private QRDetailService qrDetailService;
 
     @FXML
     private ImageView imageView;
 
     @FXML
-    private TextArea textArea;
-
-    @FXML private static TextField txtPayloadFormatIndicator;
-    @FXML private static TextField txtPointOfInitiationMethod;
-    @FXML private static TextField txtGlobalUniqueIdentifier;
-    @FXML private static TextField txtAcquirerId;
-    @FXML private static TextField txtMerchantId;
-    @FXML private static TextField txtTransactionCurrency;
-    @FXML private static TextField txtTransactionAmount;
-    @FXML private static TextField txtBillNumber;
-    @FXML private static TextField txtStoreLabel;
-    @FXML private TextField txtMobileNumber;
-    @FXML private TextField txtCrc;
-
-    private VideoCapture capture;
-    private boolean isCameraActive = false;
-    private QRDetailService qrDetailService;
+    private TextField txtDataVersion;    // payloadFormatIndicator
+    @FXML
+    private TextField txtMethod;         // pointOfInitiationMethod
+    @FXML
+    private TextField txtOrgID;          // globalUniqueIdentifier
+    @FXML
+    private TextField txtBank;           // acquirerId
+    @FXML
+    private TextField txtAccount;        // merchantId
+    @FXML
+    private TextField txtCategoryCode;   // serviceCode
+    @FXML
+    private TextField txtCurrency;       // transactionCurrency
+    @FXML
+    private TextField txtAmount;         // transactionAmount
+    @FXML
+    private TextField txtInvoice;        // billNumber
+    @FXML
+    private TextField txtMerchantName;   // storeLabel
+    @FXML
+    private TextField txtMerchantCity;   // terminalLabel
+    @FXML
+    private TextField txtPhone;          // mobileNumber
+    @FXML
+    private TextField txtCRC;            // crc
 
     // Singleton để lưu controller hiện tại
     private static imageController instance;
@@ -72,6 +77,22 @@ public class imageController {
 
     public imageController(Connection connection) {
         this.qrDetailService = new QRDetailService(connection);
+    }
+
+    public void displayParsedData(Map<String, String> parsedData) {
+        txtDataVersion.setText(parsedData.getOrDefault("Phiên bản dữ liệu", "null"));
+        txtMethod.setText(parsedData.getOrDefault("Phương thức khởi tạo", "null"));
+        txtOrgID.setText(parsedData.getOrDefault("Định danh tổ chức", "null"));
+        txtBank.setText(parsedData.getOrDefault("Ngân hàng thụ hưởng", "null"));
+        txtAccount.setText(parsedData.getOrDefault("Tài khoản thụ hưởng", "null"));
+        txtCategoryCode.setText(parsedData.getOrDefault("Mã danh mục", "null"));
+        txtCurrency.setText(parsedData.getOrDefault("Mã tiền tệ", "null"));
+        txtAmount.setText(parsedData.getOrDefault("Số tiền giao dịch", "null"));
+        txtMerchantName.setText(parsedData.getOrDefault("Tên DVCNTT", "null"));
+        txtMerchantCity.setText(parsedData.getOrDefault("Merchant City", "null"));
+        txtInvoice.setText(parsedData.getOrDefault("Số hóa đơn", "null"));
+        txtPhone.setText(parsedData.getOrDefault("Số điện thoại di động", "null"));
+        txtCRC.setText(parsedData.getOrDefault("CRC", "null"));
     }
 
         private void switchScene(ActionEvent event, String fxmlFile) throws IOException {
@@ -109,6 +130,16 @@ public class imageController {
             switchScene(event, "/com/example/qrcode/transaction.fxml");
         }
 
+        @FXML
+        private void goToAccount(ActionEvent event) throws IOException {
+            switchScene(event, "/com/example/qrcode/accounts.fxml");
+        }
+
+        @FXML
+        private void goToExtraction(ActionEvent event) throws IOException {
+            switchScene(event, "/com/example/qrcode/log.fxml");
+        }
+
     public void updateImageView(String imagePath) {
         File file = new File(imagePath);
         if (file.exists()) {
@@ -118,6 +149,40 @@ public class imageController {
             System.out.println("Không tìm thấy file: " + imagePath);
         }
     }
+
+    public void processQRCode(String qrContent, String sourceType) {
+        if (qrContent != null && !qrContent.isEmpty()) {
+            System.out.println("QR Content from " + sourceType + ": " + qrContent);
+
+            // Lưu QR Raw vào database
+            QRTextService.saveQRCodeRaw(qrContent, sourceType);
+
+            // Phân tích mã QR
+            Map<String, String> parsedData = parseEMVQRCode(qrContent);
+
+            // Hiển thị dữ liệu trong các TextField
+            displayParsedData(parsedData);
+        } else {
+            showAlert("Lỗi", "Không thể đọc mã QR.");
+        }
+    }
+
+    private String extractQRCodeFromImage(File file) {
+        try {
+            BufferedImage bufferedImage = ImageIO.read(file);
+            LuminanceSource source = new BufferedImageLuminanceSource(bufferedImage);
+            BinaryBitmap bitmap = new BinaryBitmap(new HybridBinarizer(source));
+            Result result = new MultiFormatReader().decode(bitmap);
+
+            if (result != null) {
+                return result.getText().trim();
+            }
+        } catch (IOException | NotFoundException e) {
+            System.out.println("Lỗi đọc QR từ ảnh: " + e.getMessage());
+        }
+        return null;
+    }
+
 
     // Upload ảnh từ trên máy
     @FXML
@@ -129,59 +194,38 @@ public class imageController {
         File selectedFile = fileChooser.showOpenDialog(((Node) event.getSource()).getScene().getWindow());
 
         if (selectedFile != null) {
-            String qrContent = String.valueOf(isQRCode(selectedFile));
+            String qrContent = extractQRCodeFromImage(selectedFile);
             if (qrContent != null) {
                 Image image = new Image(selectedFile.toURI().toString());
-                imageView.setImage(image); // Hiển thị ảnh trên ImageView
-                textArea.setText(qrContent); // Hiển thị nội dung QR code
-
-                // Lưu vào database với type = 0 (file)
-                //QRTextService.saveQRCodeRaw(qrContent, "filetype");
+                imageView.setImage(image);
+                processQRCode(qrContent, "file");
             } else {
                 showAlert("Lỗi đọc ảnh", "Không thể đọc ảnh. Vui lòng thử lại.");
             }
         }
     }
 
-    // Khởi tạo Camera
+    // Sử dụng camera
     @FXML
     public void startCamera() {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/example/qrcode/camera.fxml"));
             Parent root = loader.load();
 
-            // Tạo cửa sổ mới hiển thị Camera
             Stage stage = new Stage();
             stage.setTitle("Camera");
             stage.setScene(new Scene(root));
             stage.show();
 
-            // Lấy cameraController và khởi động camera
             cameraController cameraCtrl = loader.getController();
-            cameraCtrl.setTextArea(textArea);
-            cameraCtrl.setOnQRCodeScanned(qrContent -> {
-                if (qrContent != null && !qrContent.isEmpty()) {
-                    textArea.setText(qrContent); // Hiển thị QR code trên TextArea
-
-                    // In nội dung QR Code Raw ra console
-                    System.out.println("QR Code Raw Content: " + qrContent);
-
-                    // Lưu dữ liệu QR Raw vào database
-                    QRTextService.saveQRCodeRaw(qrContent, "cameratype");
-
-                    // Phân tích QR và lưu vào QRDetail
-                    parseEMVQRCode(qrContent);
-                } else {
-                    System.out.println("Lỗi: Không thể đọc mã QR.");
-                    showAlert("Lỗi", "Không thể đọc mã QR.");
-                }
-            });
+            cameraCtrl.setOnQRCodeScanned(qrContent -> processQRCode(qrContent, "camera"));
 
             cameraCtrl.startCamera();
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
+
 
     private static final Map<String, String> TAG_NAMES = new HashMap<>();
     private static final Map<String, String> ACCOUNT_INFO_TAGS = new HashMap<>();
@@ -192,7 +236,7 @@ public class imageController {
         TAG_NAMES.put("01", "Phương thức khởi tạo");
         TAG_NAMES.put("38", "Định danh tổ chức");
         TAG_NAMES.put("52", "Mã danh mục");
-        TAG_NAMES.put("58", "Mã quốc gia");
+        TAG_NAMES.put("58", "Tên quốc gia");
         TAG_NAMES.put("59", "Tên DVCNTT");
         TAG_NAMES.put("60", "Merchant City");
         TAG_NAMES.put("53", "Mã tiền tệ");
@@ -214,7 +258,7 @@ public class imageController {
     }
 
     // Xử lý các tag chính
-    public static String parseEMVQRCode(String qrData) {
+    public  Map<String, String> parseEMVQRCode(String qrData) {
         Map<String, String> parsedData = new HashMap<>();
         int index = 0;
 
@@ -253,54 +297,43 @@ public class imageController {
             }
         }
 
-        // Chuyển dữ liệu parsedData vào QRDetail
+        // Lấy thông tin ngân hàng, loại tiền và quốc gia
+        String bankCode = parsedData.getOrDefault("Ngân hàng thụ hưởng", "null");
+        String currencyCode = parsedData.getOrDefault("Mã tiền tệ", "null");
+        String countryCode = parsedData.getOrDefault("Mã quốc gia", "null");
+
+        String bankName = bankService.getBankNameByCode(bankCode);
+        String currencyName = currencyService.getCurrencyByNumber(currencyCode);
+        String countryName = countryService.getCountryNameByCode(countryCode);
+
+        parsedData.put("Ngân hàng thụ hưởng", bankName);
+        parsedData.put("Mã tiền tệ", currencyName);
+        parsedData.put("Mã quốc gia", countryName);
+
+        // Lưu vào database
+        saveQRDetail(parsedData);
+
+        // Hiển thị dữ liệu lên bảng
+        displayParsedData(parsedData);
+        return parsedData;
+    }
+
+    // Lưu dữ liệu vào database
+    private static void saveQRDetail(Map<String, String> parsedData) {
         QRDetail qrDetail = new QRDetail();
         qrDetail.setPayloadFormatIndicator(parsedData.getOrDefault("Phiên bản dữ liệu", "null"));
         qrDetail.setPointOfInitiationMethod(parsedData.getOrDefault("Phương thức khởi tạo", "null"));
         qrDetail.setGlobalUniqueIdentifier(parsedData.getOrDefault("Định danh tổ chức", "null"));
         qrDetail.setAcquirerId(parsedData.getOrDefault("Ngân hàng thụ hưởng", "null"));
         qrDetail.setMerchantId(parsedData.getOrDefault("Tài khoản thụ hưởng", "null"));
-        qrDetail.setServiceCode(parsedData.getOrDefault("serviceCode", "null"));
         qrDetail.setTransactionCurrency(parsedData.getOrDefault("Mã tiền tệ", "null"));
         qrDetail.setTransactionAmount(parsedData.getOrDefault("Số tiền giao dịch", "null"));
         qrDetail.setBillNumber(parsedData.getOrDefault("Số hóa đơn", "null"));
         qrDetail.setStoreLabel(parsedData.getOrDefault("Tên DVCNTT", "null"));
-        qrDetail.setTerminalLabel(parsedData.getOrDefault("terminalNumber", "null"));
         qrDetail.setMobileNumber(parsedData.getOrDefault("Số điện thoại di động", "null"));
         qrDetail.setCrc(parsedData.getOrDefault("CRC", "null"));
 
-        // Danh sách thứ tự khóa mong muốn
-        List<String> keyOrder = Arrays.asList(
-                "Phiên bản dữ liệu",
-                "Phương thức khởi tạo",
-                "Định danh tổ chức",
-                "Ngân hàng thụ hưởng",
-                "Tài khoản thụ hưởng",
-                "Mã danh mục",
-                "Mã tiền tệ",
-                "Số tiền giao dịch",
-                "Mã quốc gia",
-                "Tên DVCNTT",
-                "Merchant City",
-                "Số hóa đơn",
-                "Số điện thoại di động",
-                "CRC"
-        );
-
-        // Sắp xếp lại kết quả theo thứ tự mong muốn
-        StringBuilder result = new StringBuilder();
-        Map<String, String> sortedData = new LinkedHashMap<>();
-        for (String key : keyOrder) {
-            sortedData.put(key, parsedData.getOrDefault(key, "null"));
-            if (parsedData.containsKey(key)) {
-                result.append(key).append(": ").append(parsedData.get(key)).append("\n");
-            }
-        }
-
-        // Lưu vào bảng QRDetail
         QRDetailService.saveQRDetail(qrDetail);
-
-        return result.toString();
     }
 
     // Xử lý subtag cho ID = 38
@@ -383,9 +416,6 @@ public class imageController {
                 String value = data.substring(index, index + length);
                 index += length;
 
-                // Debug
-                System.out.println("Tag: " + tag + ", Length: " + length + ", Value: " + value);
-
                 // Xử lý các subtag
                 switch (tag) {
                     case "01":
@@ -411,35 +441,6 @@ public class imageController {
         }
 
         return result;
-    }
-
-    private String isQRCode(File file) {
-        String type = null;
-        try {
-            BufferedImage bufferedImage = ImageIO.read(file);
-            LuminanceSource source = new BufferedImageLuminanceSource(bufferedImage);
-            BinaryBitmap bitmap = new BinaryBitmap(new HybridBinarizer(source));
-            Result result = new MultiFormatReader().decode(bitmap);
-
-            if (result == null) {
-                showAlert("Không phải QR Code", "Ảnh bạn chọn không chứa mã QR hợp lệ.");
-                return null;
-            }
-
-            // Lấy nội dung QR code raw (chuỗi EMV thô)
-            String qrRawContent = result.getText().trim();
-            System.out.println("QR Code Raw Content: " + qrRawContent); // Debug
-
-            // Lưu QR Code raw vào PostgreSQL
-            QRTextService.saveQRCodeRaw(qrRawContent, "filetype");
-
-            // Trả về dữ liệu đã phân tích
-            return parseEMVQRCode(qrRawContent);
-
-        } catch (IOException | NotFoundException e) {
-            showAlert("Không phải QR Code", "Ảnh bạn chọn không chứa mã QR hợp lệ.");
-        }
-        return null;
     }
 
     private void showAlert(String title, String content) {
